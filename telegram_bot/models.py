@@ -14,7 +14,6 @@ class Client(models.Model):
         db_index=True,
         max_length=20,
         choices=TARIFF_CHOICES
-
     )
     full_name = models.CharField(
         'Полное имя',
@@ -25,7 +24,8 @@ class Client(models.Model):
         'Telegram Id',
         db_index=True,
         blank=True,
-        null=True
+        null=True,
+        unique=True
     )
 
     class Meta:
@@ -78,7 +78,8 @@ class Order(models.Model):
         Contractor,
         on_delete=models.CASCADE,
         verbose_name='исполнитель',
-        related_name='orders'
+        related_name='orders',
+        null=True
     )
 
     class Meta:
@@ -87,3 +88,16 @@ class Order(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Message(models.Model):
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        verbose_name='заказ',
+        related_name='messages'
+    )
+    text = models.TextField(
+        'История переписки',
+        blank=True
+    )
