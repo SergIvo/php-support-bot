@@ -16,9 +16,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
+from telegram_bot.views import redirect2admin
 
 
 urlpatterns = [
+    path('', redirect2admin),
     path('admin/', admin.site.urls),
     path('api/', include('telegram_bot.urls'))
 ]

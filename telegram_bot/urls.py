@@ -4,6 +4,6 @@ from django.urls import path
 urlpatterns = [
     path('register/', register_client),
     path('create/', create_order),
-    path('orders/', get_order)
+    path('orders/<int:tg_id>', get_order)
 ]
 

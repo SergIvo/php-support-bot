@@ -2,6 +2,12 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import Client, Order
 from rest_framework.serializers import ModelSerializer
+from django.urls import reverse
+from django.http import HttpResponseRedirect
+
+
+def redirect2admin(request):
+    return HttpResponseRedirect(reverse('admin:index'))
 
 
 class ClientSerializer(ModelSerializer):
@@ -46,5 +52,8 @@ def create_order(request):
 
 
 @api_view(['GET'])
-def get_order(request):
-    return Response(request.data)
+def get_order(request, tg_id):
+    client = Client.objects.get(telegram_id=tg_id)
+    orders = client.orders.all()
+    serializer = OrderSerializer(orders, many=True)
+    return Response(serializer.data)
