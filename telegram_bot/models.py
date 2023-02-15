@@ -79,6 +79,7 @@ class Order(models.Model):
         on_delete=models.CASCADE,
         verbose_name='исполнитель',
         related_name='orders',
+        blank=True,
         null=True
     )
 
