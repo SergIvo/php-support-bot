@@ -34,8 +34,19 @@ ORDERS_HISTORY = [
     {'id': 2, 'text': 'Доработать интерфейс'},
     {'id': 3, 'text': 'Починить авторизацию'},
     {'id': 4, 'text': 'Доработать базу данных'},
-    {'id': 5, 'text': 'Починить формы ввода'}
+    {'id': 5, 'text': 'Починить формы ввода'},
+    {'id': 6, 'text': 'Починить формы ввода'},
+    {'id': 7, 'text': 'Починить формы ввода'},
+    {'id': 8, 'text': 'Починить формы ввода'}
 ]
+
+
+def get_orders_history(role):
+    return ORDERS_HISTORY
+
+
+def get_new_orders(role):
+    return NEW_ORDERS
 
 
 class ContractorUI(StatesGroup):
@@ -44,7 +55,8 @@ class ContractorUI(StatesGroup):
     order = State()
 
 
-inlines_cb_data = CallbackData('list_type', 'object', 'id')
+inlines_cb = CallbackData('#', 'action', 'subject')
+print(inlines_cb._part_names)
 
 
 async def send_main_menu(message: types.Message, state: FSMContext):
@@ -63,60 +75,70 @@ async def send_main_menu(message: types.Message, state: FSMContext):
         await message.reply('Выберите действие', reply_markup=markup)
 
 
-async def find_order(message: types.Message):
-    orders = ['Order 1', 'Order 2', 'Order 3', 'Order 4', 'Order 5']
-    markup = types.InlineKeyboardMarkup(row_width=4, resize_keyboard=True)
-    for i, order in enumerate(orders):
-        order_button = types.InlineKeyboardButton(text=order, callback_data=f'{i}')
-        markup.add(order_button)
-    
-    navigation_buttons = [
-        types.InlineKeyboardButton(text='Назад', callback_data='menu'),
-        types.InlineKeyboardButton(text='>', callback_data='forward'),
-    ]
-    markup.row()
-    for button in navigation_buttons:
-        markup.insert(button)
-
-    await message.answer('Доступные заказы', reply_markup=markup)
-
-
 async def show_order_history(message: types.Message, state: FSMContext):
-    orders = NEW_ORDERS
+    entries_limit = 5
+
     if isinstance(message, types.callback_query.CallbackQuery):
-        orders = NEW_ORDERS
-        print(dir(message))
+        callback_data = inlines_cb.parse(message.data)
+        current_page = int(callback_data['subject'])
+        print(current_page)
+
+        if 'История заказов' in message.message.text:
+            all_orders = get_orders_history('contractor')
+            reply_text = 'История заказов'
+        elif 'Доступные заказы' in message.message.text:
+            all_orders = get_new_orders('contractor')
+            reply_text = 'Доступные заказы'
+        orders = all_orders[entries_limit * (current_page - 1):entries_limit * current_page]
     else:
-        print(message.text)
+        current_page = 1
         if 'Мои заказы' in message.text:
-            orders = ORDERS_HISTORY[:5]
+            all_orders = get_orders_history('contractor')
             reply_text = 'История заказов'
         elif 'Найти заказ' in message.text:
-            orders = NEW_ORDERS[:5]
+            all_orders = get_new_orders('contractor')
             reply_text = 'Доступные заказы'
+        orders = all_orders[:entries_limit]
+
     markup = types.InlineKeyboardMarkup(row_width=4, resize_keyboard=True)
     for order in orders:
-        order_button = types.InlineKeyboardButton(order['text'], callback_data=str(order['id']))
+        order_cb_data = inlines_cb.new(action='view_order', subject=str(order['id']))
+        order_button = types.InlineKeyboardButton(order['text'], callback_data=order_cb_data)
         markup.add(order_button)
-    
-    navigation_buttons = [
-        types.InlineKeyboardButton(text='Назад', callback_data='menu'),
-        types.InlineKeyboardButton(text='>', callback_data='forward'),
-    ]
+
+    forward_cb_data = inlines_cb.new(action='browse_list', subject=f'{current_page + 1}')
     markup.row()
-    for button in navigation_buttons:
-        markup.insert(button)
+    if current_page > 1:
+        back_cb_data = inlines_cb.new(action='browse_list', subject=f'{current_page - 1}')
+        markup.insert(
+            types.InlineKeyboardButton(text='<', callback_data=back_cb_data)
+        )
+    markup.insert(
+        types.InlineKeyboardButton(text='Назад', callback_data='menu')
+    )
+    if current_page * entries_limit < len(all_orders):
+        forward_cb_data = inlines_cb.new(action='browse_list', subject=f'{current_page + 1}')
+        markup.insert(
+            types.InlineKeyboardButton(text='>', callback_data=forward_cb_data)
+        )
+    markup.row()
 
     state = await state.get_state()
-    print(state)
     if isinstance(message, types.callback_query.CallbackQuery):
-        pass
+        await message.message.edit_reply_markup(reply_markup=markup)
     else:
-        await message.answer('История заказов', reply_markup=markup)
+        await message.answer(reply_text, reply_markup=markup)
 
 
-async def some_inline_handler(callback: types.CallbackQuery):
-    print(callback.message)
+async def show_order_details(callback: types.CallbackQuery):
+    callback_data = inlines_cb.parse(callback.data)
+    print(callback_data)
+    reply_text = 'Пока пусто'
+    markup = types.InlineKeyboardMarkup(row_width=4, resize_keyboard=True)
+    markup.add(
+        types.InlineKeyboardButton(text='В главное меню', callback_data='menu')
+    )
+    await callback.message.answer(reply_text, reply_markup=markup)
 
 
 if __name__ == '__main__':
@@ -132,8 +154,8 @@ if __name__ == '__main__':
     
     dispatcher.register_message_handler(send_main_menu, commands=['menu'], state='*')
     dispatcher.register_callback_query_handler(send_main_menu, text='menu', state='*')
-    dispatcher.register_callback_query_handler(show_order_history, text=['back', 'forward'], state=ContractorUI.orders_list)
+    dispatcher.register_callback_query_handler(show_order_history, inlines_cb.filter(action='browse_list'), state=ContractorUI.orders_list)
     dispatcher.register_message_handler(show_order_history, state=ContractorUI.orders_list)
-    dispatcher.register_callback_query_handler(some_inline_handler, text=['1', '2', '3', '4', '5'])
+    dispatcher.register_callback_query_handler(show_order_details, inlines_cb.filter(action='view_order'), state='*')
 
     executor.start_polling(dispatcher, skip_updates=True)
