@@ -7,14 +7,16 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
+from datetime import datetime
 
 curr_tariff = None
 chat_contractor_id = None
 order_find = []
 orders_base = []
+
 order_name = None
 order_description = None
+
 client_id = None
 history_orders_list = []
 
@@ -114,17 +116,18 @@ async def send_welcome(message: types.Message):
     This handler will be called when user sends `/start` or `/help` command
     """
     #await bot.send_message(message.from_user.id, f'Here is your id {message.from_user.id}')
-    tg_id = message.from_user.id
-    global orders_base
-    res, who_is_user, orders_base = check_role(db_connect, tg_id)
+    try:
+        tg_id = message.from_user.id
+        global orders_base
+        res, who_is_user, orders_base = check_role(db_connect, tg_id)
 
-    if res == 'CLIENT CONFIRMED':
-        global curr_tariff
-        curr_tariff = who_is_user[1]
-        await bot.send_message(message.from_user.id, "Привет, {0.first_name}!\nС возвращением, Вы авторизованы как клиент.\nВаш текущий тариф: {1}\nКол-во доступных заказов в этом периоде: orders_qty ".format(message.from_user, who_is_user[1]), reply_markup = navi.client_main_menu)
-    elif res == 'CONTRACTOR CONFIRMED':
-        await bot.send_message(message.from_user.id, "Привет, {0.first_name}!\nС возвращением, Вы авторизованы как подрядчик.\n".format(message.from_user), reply_markup = navi.contractor_main_menu)
-    else:
+        if res == 'CLIENT CONFIRMED':
+            global curr_tariff
+            curr_tariff = who_is_user[1]
+            await bot.send_message(message.from_user.id, "Привет, {0.first_name}!\nС возвращением, Вы авторизованы как клиент.\nВаш текущий тариф: {1}\nКол-во доступных заказов в этом периоде: orders_qty ".format(message.from_user, who_is_user[1]), reply_markup = navi.client_main_menu)
+        elif res == 'CONTRACTOR CONFIRMED':
+            await bot.send_message(message.from_user.id, "Привет, {0.first_name}!\nС возвращением, Вы авторизованы как подрядчик.\n".format(message.from_user), reply_markup = navi.contractor_main_menu)
+    except:
         await bot.send_message(message.from_user.id, "Привет, {0.first_name}!\nЯ - бот PHPService, помогу заказать небольшие фичи для Вашего сайта, давайте зарегистрируемся?".format(message.from_user), reply_markup = navi.main_menu)
 
 
@@ -222,8 +225,13 @@ async def bot_message(message: types.Message):
         if order_name and order_description:
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!WOW THIS SHIT WORKS!!!!!!!!!!!!!!!!!!!!')
             # !!!!!!!!!!!!!!!!!    INSERT UPDATE BD WITH ORDER INFO HERE   !!!!!!!!!!!!!!!!!!!!!!!!!
+
+            cur_conn = db_connect.cursor()
+            cur_conn.execute('''INSERT INTO telegram_bot_order(title, description, registered_at, client_id) VALUES(?,?,?,?)''', (order_name, order_description, datetime.today().strftime('%Y-%m-%d %H:%M:%S'), message.from_user.id))
+            db_connect.commit()
+
             await bot.send_message(message.from_user.id, f"Ваша работа размещена.\nНазвание работы: {order_name}\nОписание работы: {order_description}", reply_markup = navi.client_main_menu)
-        
+
         else:
             await bot.send_message(message.from_user.id, f"Пожалуйста, введите и подтвердите название и описание работы.", reply_markup = navi.place_new_order_menu)
 
@@ -238,24 +246,28 @@ async def bot_message(message: types.Message):
 
         cur_order = db_connect.cursor()
         orders = cur_order.execute("SELECT * FROM telegram_bot_order")
-
+        
         cur_contractor = db_connect.cursor()
         contractors = cur_contractor.execute("SELECT * FROM telegram_bot_contractor")
 
         all_clients = clients.fetchall()
         all_orders = orders.fetchall()
+        print(all_orders)
         all_contractors = contractors.fetchall()
 
         for client in all_clients:
             if client[3] == message.from_user.id:
                 client = list(client)
-                print(client[0])
                 global client_id
-                client_id = client[0]
+                client_id = client[3]
 
-        for order in orders_base:
-            if order[3] == client_id:
+        for order in all_orders:
+            print('order[4]', order[4])
+            print('client_id', client_id)
+            if order[4] == client_id:
+                print('order', order)
                 orders_list.append(order)
+                print(orders_list)
 
         if len(orders_list) == 0:
             await bot.send_message(message.from_user.id, "Нет истории заказов. Назад в меню клиента", reply_markup = navi.client_main_menu)
@@ -264,8 +276,9 @@ async def bot_message(message: types.Message):
             for order in orders_list:
                 order_display = {"#": order[0],\
                     "Наименование работы": order[1],\
-                    "Дата создания работы": order[2],\
-                    "Исполнитель": order[4]}
+                    "Описание работы": order[2],\
+                    "Дата создания работы": order[3],\
+                    "Исполнитель": order[5]}
                 markup = InlineKeyboardMarkup(row_width=1, resize_keyboard=True)
 
                 global chat_contractor_id
@@ -284,7 +297,7 @@ async def bot_message(message: types.Message):
 
 # Определение нового клиента и начало регистрации
 
-    elif message.text == 'Регистрация нового клиента' and res == 'PLEASE REGISTER':
+    elif message.text == 'Регистрация нового клиента':
 
         markup = types.InlineKeyboardMarkup()
 
@@ -314,8 +327,12 @@ async def bot_message(message: types.Message):
 
 @dp.callback_query_handler(text=["vip_picked"])
 async def chat_contractor(message: types.Message):
-    pass
-#send to payment + add to db
+    
+    markup = types.InlineKeyboardMarkup()
+    btn_finish_reg = types.InlineKeyboardButton(text="Finish Reg", callback_data="ok_to_register_client")
+    markup.add(btn_finish_reg)
+
+    await bot.send_message(message.from_user.id, f"ok", reply_markup=markup)
 
 
 @dp.callback_query_handler(text=["eco_picked"])
@@ -330,15 +347,36 @@ async def chat_contractor(message: types.Message):
 #send to payment + add to db
 
 
+
+
+
+
+# REGISTER PART HERE _____________________________________
+
+@dp.callback_query_handler(text=["ok_to_register_client"])
+async def chat_contractor(message: types.Message):
+    tariff = 'VIP'
+    fullname = f'{message.from_user.first_name} + {message.from_user.last_name}'
+    telegram_id = message.from_user.id
+    telegram_username = message.from_user.username
+
+    cur_conn = db_connect.cursor()
+    cur_conn.execute('''INSERT INTO telegram_bot_client(tariff, full_name, telegram_id, telegram_username) VALUES(?,?,?,?)''', (tariff, fullname, telegram_id, telegram_username))
+    db_connect.commit()
+    
+    await bot.send_message(message.from_user.id, f"You are registered now.", reply_markup = navi.client_main_menu)
+
+
 @dp.callback_query_handler(text=["chat_with_contractor"])
 async def chat_contractor(message: types.Message):
     # chat_contractor_id  - это sn заказа
     # сделать логику поиска SN заказа в БД
     # и достать chat id
     if curr_tariff == 'VIP':
+        telegram_username = 'insaneartillery' # взять username из БД с заказами
         print(chat_contractor_id)
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton('Переходим в чат с исполнителем', url=f'https://t.me/insane_artillery'))
+        markup.add(types.InlineKeyboardButton('Переходим в чат с исполнителем', url=f'https://t.me/{telegram_username}'))
         #  выше добавлять в адрес данные из БД с линком на ТГ ------------------------------------------^^^^^
         await bot.send_message(message.from_user.id,
                                 f"...loading...",

@@ -27,6 +27,14 @@ class Client(models.Model):
         null=True,
         unique=True
     )
+    telegram_username = models.CharField(
+        'Telegram Username',
+        max_length=75,
+        db_index=True,
+        blank=True,
+        null=True,
+        unique=True
+    )
 
     class Meta:
         verbose_name = 'Заказчик'
@@ -48,6 +56,14 @@ class Contractor(models.Model):
         blank=True,
         null=True
     )
+    telegram_username = models.CharField(
+        'Telegram Username',
+        max_length=75,
+        db_index=True,
+        blank=True,
+        null=True,
+        unique=True
+    )
 
     class Meta:
         verbose_name = 'Исполнитель'
@@ -61,6 +77,12 @@ class Order(models.Model):
     title = models.CharField(
         'Название заказа',
          max_length=200
+    )
+    description = models.TextField(
+        'Описание заказа',
+         max_length=200,
+         null=True,
+         blank=True
     )
     registered_at = models.DateTimeField(
         verbose_name='Дата создания заказа',
