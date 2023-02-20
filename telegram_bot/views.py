@@ -4,6 +4,7 @@ from .models import Client, Order
 from rest_framework.serializers import ModelSerializer
 from django.urls import reverse
 from django.http import HttpResponseRedirect
+from rest_framework import generics
 
 
 def redirect2admin(request):
@@ -20,8 +21,9 @@ class ClientSerializer(ModelSerializer):
 class OrderSerializer(ModelSerializer):
     class Meta:
         model = Order
-        fields = ['id', 'title']
-        read_only_fields = ['id']
+        fields = ['id', 'title', 'registered_at', 'client', 'contractor']
+        read_only_fields = ['id', 'client']
+
 
 @api_view(['POST'])
 def register_client(request):
@@ -50,9 +52,13 @@ def create_order(request):
     serializer = OrderSerializer(order)
     return Response(serializer.data)
 
+class OrderAPIUpdate(generics.RetrieveUpdateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+
 
 @api_view(['GET'])
-def get_order(request, tg_id):
+def get_orders(request, tg_id):
     client = Client.objects.get(telegram_id=tg_id)
     orders = client.orders.all()
     serializer = OrderSerializer(orders, many=True)
