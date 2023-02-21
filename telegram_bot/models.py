@@ -74,6 +74,19 @@ class Contractor(models.Model):
 
 
 class Order(models.Model):
+    STATUS_CHOICES = [
+        ('NOT_ASSIGNED', 'Не назначен'),
+        ('IN_PROGRESS', 'В работе'),
+        ('FINISHED', 'Выполнен')
+    ]
+
+    status = models.CharField(
+        'Статус',
+        db_index=True,
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='NOT_ASSIGNED'
+    )
     title = models.CharField(
         'Название заказа',
          max_length=200
@@ -114,6 +127,17 @@ class Order(models.Model):
 
 
 class Message(models.Model):
+    SENDER_CHOICES = [
+        ('CLIENT', 'Заказчик'),
+        ('CONTRACTOR', 'Исполнитель')
+    ]
+
+    sender = models.CharField(
+        'Отправитель',
+        db_index=True,
+        max_length=20,
+        choices=SENDER_CHOICES
+    )
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
@@ -121,6 +145,6 @@ class Message(models.Model):
         related_name='messages'
     )
     text = models.TextField(
-        'История переписки',
+        'Сообщение',
         blank=True
     )
