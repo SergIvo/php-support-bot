@@ -16,6 +16,7 @@ class OrderChatMessageInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
+    list_display = ['title', 'client', 'status', 'contractor']
     inlines = [
         OrderChatMessageInline
     ]
