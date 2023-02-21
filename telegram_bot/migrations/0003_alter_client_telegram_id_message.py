@@ -16,12 +16,4 @@ class Migration(migrations.Migration):
             name='telegram_id',
             field=models.IntegerField(blank=True, db_index=True, null=True, unique=True, verbose_name='Telegram Id'),
         ),
-        migrations.CreateModel(
-            name='Message',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('text', models.TextField(blank=True, verbose_name='История переписки')),
-                ('order', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='messages', to='telegram_bot.order', verbose_name='заказ')),
-            ],
-        ),
     ]
