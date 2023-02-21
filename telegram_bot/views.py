@@ -1,6 +1,6 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Client, Order, Message
+from .models import Client, Contractor, Order, Message
 from rest_framework.serializers import ModelSerializer
 from django.urls import reverse
 from django.http import HttpResponseRedirect
@@ -15,6 +15,13 @@ class ClientSerializer(ModelSerializer):
     class Meta:
         model = Client
         fields = ['id', 'tariff', 'full_name', 'telegram_id']
+        read_only_fields = ['id']
+
+
+class ContractorSerializer(ModelSerializer):
+    class Meta:
+        model = Contractor
+        fields = ['id', 'full_name', 'telegram_id', 'telegram_username']
         read_only_fields = ['id']
 
 
@@ -81,9 +88,24 @@ def create_message(request):
 
 
 @api_view(['GET'])
-def get_orders(request, tg_id):
+def get_contractor(request, tg_id):
+    contractor = Contractor.objects.get(telegram_id=tg_id)
+    serializer = ContractorSerializer(contractor)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def get_client_orders(request, tg_id):
     client = Client.objects.get(telegram_id=tg_id)
     orders = client.orders.all()
+    serializer = OrderSerializer(orders, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def get_contractor_orders(request, tg_id):
+    contractor = Contractor.objects.get(telegram_id=tg_id)
+    orders = contractor.orders.all()
     serializer = OrderSerializer(orders, many=True)
     return Response(serializer.data)
 
